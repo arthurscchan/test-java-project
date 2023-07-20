@@ -31,9 +31,6 @@ import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.plugins.annotations.ResolutionScope;
 import org.apache.maven.project.MavenProject;
 
-import java.io.File;
-import java.util.Set;
-
 /*
  SlsaVerificationMojo is a Maven plugin that wraps https://github.com/slsa-framework/slsa-verifier.
  At a high level, it does the following:
@@ -53,73 +50,54 @@ import java.util.Set;
    6: cd into your repository
    7: mvn io.github.adamkorcz:slsa-verification-plugin:0.0.1:verify
 */
-@Mojo(
-    name = "verify",
-    defaultPhase = LifecyclePhase.VERIFY,
+@Mojo(name = "verify", defaultPhase = LifecyclePhase.VERIFY,
     requiresDependencyCollection = ResolutionScope.COMPILE_PLUS_RUNTIME,
-    requiresDependencyResolution = ResolutionScope.COMPILE_PLUS_RUNTIME)@Mojo(
+    requiresDependencyResolution = ResolutionScope.COMPILE_PLUS_RUNTIME)
 public class SlsaVerificationMojo extends AbstractMojo {
   @Parameter(defaultValue = "${project}", required = true, readonly = true)
   private MavenProject project;
 
   /**
-    * Custom path of GOHOME, default value is $HOME/go
-    */
-  @Parameter(property = "slsa.verifier.path", required = true)
-  private String verifierPath;
+   * Custom path of GOHOME, default value is $HOME/go
+   */
+  @Parameter(property = "slsa.verifier.path", required = true) private String verifierPath;
 
   /** Switch for including transitive dependency or not */
-  @Parameter(property = "slsa.transitive", defaultValue = "false")
-  private boolean transitive;
+  @Parameter(property = "slsa.transitive", defaultValue = "false") private boolean transitive;
 
   @Component private MavenSession mavenSession;
 
   @Component private BuildPluginManager pluginManager;
 
-    public void execute() throws MojoExecutionException, MojoFailureException {
-        // Verify the slsa of each dependency
-        Set<Artifact> dependencyArtifacts;
-        if (transitive) {
-          dependencyArtifacts = project.getArtifacts();
-        } else {
-          dependencyArtifacts = project.getDependencyArtifacts();
-        }
-        for (Artifact artifact : dependencyArtifacts ) {
-            // Retrieve the dependency jar and its slsa file
-            String artifactStr = artifact.getGroupId() + ":" + artifact.getArtifactId() + ":" + artifact.getVersion();
-            try {
-                // Retrieve the slsa file of the artifact
-                executeMojo(
-                    plugin(
-                        groupId("com.googlecode.maven-download-plugin"),
-                        artifactId("download-maven-plugin"),
-                        version("1.7.0")
-                    ),
-                    goal("artifact"),
-                    configuration(
-                        element(name("outputDirectory"), "${project.build.directory}/slsa"),
-                        element(name("groupId"), artifact.getGroupId()),
-                        element(name("artifactId"), artifact.getArtifactId()),
-                        element(name("version"), artifact.getVersion()),
-                        element(name("type"), "intoto.build.slsa"),
-                        element(name("classifier"), "jar")
-                    ),
-                    executionEnvironment(
-                        project,
-                        mavenSession,
-                        pluginManager
-                    )
-                );
+  public void execute() throws MojoExecutionException, MojoFailureException {
+    // Verify the slsa of each dependency
+    Set<Artifact> dependencyArtifacts;
+    if (transitive) {
+      dependencyArtifacts = project.getArtifacts();
+    } else {
+      dependencyArtifacts = project.getDependencyArtifacts();
+    }
+    for (Artifact artifact : dependencyArtifacts) {
+      // Retrieve the dependency jar and its slsa file
+      String artifactStr =
+          artifact.getGroupId() + ":" + artifact.getArtifactId() + ":" + artifact.getVersion();
+      try {
+        // Retrieve the slsa file of the artifact
+        executeMojo(plugin(groupId("com.googlecode.maven-download-plugin"),
+                        artifactId("download-maven-plugin"), version("1.7.0")),
+            goal("artifact"),
+            configuration(element(name("outputDirectory"), "${project.build.directory}/slsa"),
+                element(name("groupId"), artifact.getGroupId()),
+                element(name("artifactId"), artifact.getArtifactId()),
+                element(name("version"), artifact.getVersion()),
+                element(name("type"), "intoto.build.slsa"), element(name("classifier"), "jar")),
+            executionEnvironment(project, mavenSession, pluginManager));
 
         // Retrieve the dependency jar if slsa file does exists for this artifact
-        executeMojo(
-            plugin(
-                groupId("org.apache.maven.plugins"),
-                artifactId("maven-dependency-plugin"),
-                version("3.6.0")),
+        executeMojo(plugin(groupId("org.apache.maven.plugins"),
+                        artifactId("maven-dependency-plugin"), version("3.6.0")),
             goal("copy"),
-            configuration(
-                element(name("outputDirectory"), "${project.build.directory}/slsa"),
+            configuration(element(name("outputDirectory"), "${project.build.directory}/slsa"),
                 element(name("artifact"), artifactStr)),
             executionEnvironment(project, mavenSession, pluginManager));
       } catch (MojoExecutionException e) {
@@ -132,23 +110,14 @@ public class SlsaVerificationMojo extends AbstractMojo {
         // Run slsa verification on the artifact and print the result
         // It will never fail the build process
         String arguments = "verify-artifact --provenance-path ";
-        arguments +=
-            "${project.build.directory}/slsa/"
-                + artifact.getArtifactId()
-                + "-"
-                + artifact.getVersion()
-                + "-jar.intoto.build.slsa ";
-        arguments +=
-            " --source-uri ./ ${project.build.directory}/slsa/"
-                + artifact.getArtifactId()
-                + "-"
-                + artifact.getVersion()
-                + ".jar";
+        arguments += "${project.build.directory}/slsa/" + artifact.getArtifactId() + "-"
+            + artifact.getVersion() + "-jar.intoto.build.slsa ";
+        arguments += " --source-uri ./ ${project.build.directory}/slsa/" + artifact.getArtifactId()
+            + "-" + artifact.getVersion() + ".jar";
         executeMojo(
             plugin(groupId("org.codehaus.mojo"), artifactId("exec-maven-plugin"), version("3.1.0")),
             goal("exec"),
-            configuration(
-                element(name("executable"), verifierPath),
+            configuration(element(name("executable"), verifierPath),
                 element(name("commandlineArgs"), arguments),
                 element(name("useMavenLogger"), "true")),
             executionEnvironment(project, mavenSession, pluginManager));
