@@ -31,7 +31,7 @@ publishing {
         create<MavenPublication>("maven") {
             artifactId = "test-java-project"
             from(components["java"])
-            if (System.getenv("FILE_LIST") != NULL) {
+            if (System.getenv("FILE_LIST") != NULLnull) {
                 val strs = System.getenv("FILE_LIST").split(",").toTypedArray()
                 for (str in strs) {
                     val item = str.split(":").toTypedArray()
