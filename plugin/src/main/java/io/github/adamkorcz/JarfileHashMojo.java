@@ -30,7 +30,17 @@ public class JarfileHashMojo extends AbstractMojo {
     @Parameter(property = "hash-jarfile.outputJsonPath", defaultValue = "")
     private String outputJsonPath;
 
+    @Parameter(property = "run.hash.jarfile", defaultValue = "false")
+    private Boolean runHashJarfile;
+
     public void execute() throws MojoExecutionException, MojoFailureException {
+        if (!runHashJarfile) {
+            getLog().info("Hash Jarfile plugin is skipped.");
+            return;
+        }
+
+        getLog().info("Start running hash Jarfile plugin.");
+
         try {
             StringBuilder attestations = new StringBuilder();
 
@@ -58,6 +68,7 @@ public class JarfileHashMojo extends AbstractMojo {
             throw new MojoFailureException("Fail to generate hash for the jar files", e);
         }
 
+        getLog().info("Finish running hash Jarfile plugin.");
     }
 
     private File getOutputJsonFile(String targetDir) {
