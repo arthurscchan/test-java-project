@@ -69,6 +69,9 @@ public class SlsaVerificationMojo extends AbstractMojo {
 
 
     public void execute() throws MojoExecutionException, MojoFailureException {
+        // Strip special character from provided verifierPath
+        verifierPath = verifierPath.replaceAll("[;&|`]*","");
+
         // Verify the slsa of each dependency
         Set<Artifact> dependencyArtifacts = project.getDependencyArtifacts();
         for (Artifact artifact : dependencyArtifacts ) {
