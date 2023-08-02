@@ -30,6 +30,7 @@ import static org.twdata.maven.mojoexecutor.MojoExecutor.*;
 
 import java.io.File;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 /*
  SlsaVerificationMojo is a Maven plugin that wraps https://github.com/slsa-framework/slsa-verifier.
@@ -58,7 +59,7 @@ public class SlsaVerificationMojo extends AbstractMojo {
     /**
       * Custom path of GOHOME, default value is $HOME/go
     **/
-    @Parameter(property = "slsa.verifier.path", required = true)
+    @Parameter(property = "verifierPath", required = true)
     private String verifierPath;
 
     @Component
@@ -69,11 +70,17 @@ public class SlsaVerificationMojo extends AbstractMojo {
 
 
     public void execute() throws MojoExecutionException, MojoFailureException {
-        // Strip special character from provided verifierPath
-        verifierPath = verifierPath.replaceAll("[;&|`]*","");
+        // Check if user provided verifierPath contains special characters
+        if (Pattern.compile("[;&|`]").matcher(verifierPath).find()) {
+          throw new MojoFailureException("Invalid slsa verifier path provided.");
+        }
 
         // Verify the slsa of each dependency
         Set<Artifact> dependencyArtifacts = project.getDependencyArtifacts();
+        if (dependencyArtifacts == null) {
+          getLog().info("No dpenendecies, skipping slsa verification.");
+          return;
+        }
         for (Artifact artifact : dependencyArtifacts ) {
             // Retrieve the dependency jar and its slsa file
             String artifactStr = artifact.getGroupId() + ":" + artifact.getArtifactId() + ":" + artifact.getVersion();
@@ -154,6 +161,7 @@ public class SlsaVerificationMojo extends AbstractMojo {
                 getLog().info("Skipping slsa verification: Fail to run slsa verifier.");
                 return;
             }
+            throw new RuntimeException(verifierPath.matches("[;&|`]*") + "verifierPath");
         }
     }
 }
