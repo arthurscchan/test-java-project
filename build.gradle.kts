@@ -28,6 +28,12 @@ java {
     withJavadocJar()
 }
 
+tasks.withType<Jar> {
+    manifest {
+        attributes["Main-Class"] = "hello.HelloWorld"
+    }
+}
+
 publishing {
     publications {
         create<MavenPublication>("maven") {
